@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title>Nasazení HA loadbalanceru - HAProxy + Let's Encrypt</title>
+
+    <meta name="author" content="Pavel Pulec">
+
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <link rel="stylesheet" href="./css/reveal.min.css">
+    <link rel="stylesheet" href="./css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="./css/reveal.custom.css">
+
+
+    <!-- For syntax highlighting -->
+    <link rel="stylesheet" href="./lib/css/zenburn.css">
+
+    <!-- If the query includes 'print-pdf', use the PDF print sheet -->
+    <script>
+      document.write('<link rel="stylesheet" href="./css/print/' + ( window.location.search.match(/print-pdf/gi) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">');
+    </script>
+
+    <!--[if lt IE 9]>
+    <script src="./lib/js/html5shiv.js"></script>
+    <![endif]-->
+    <link rel="stylesheet" href="./css/kayn.css">
+</head>
+
+<body>
+
+<div class="reveal">
+
+    <!-- Any section element inside of this container is displayed as a slide -->
+    <div class="slides">
+
+        <section>
+            <h2>Nasazení HA loadbalanceru</h2>
+            <h2>-</h2>
+            <h2>HAProxy + Let's Encrypt</h2>
+            <h5>Pavel Pulec</h5>
+        </section>
+
+        <section>
+            <section>
+                <h2>O mně</h2>
+            </section>
+
+            <section>
+                <h3>Pavel Pulec</h3>
+                <ul>
+                    <li>linux administrátor @inuits.{cz,be,eu,nl}</li>
+                    <li>Puppet, HA, MongoDB, GlusterFS, Jenkins, Icinga, ELK, RabbitMQ, Apache Storm, automatizace, ...</li>
+                    <li>kayn@inuits.eu</li>
+                </ul>
+            </section>
+
+        </section>
+
+        <section>
+            <section>
+                <h2>HA stack</h2>
+            </section>
+
+            <section>
+                 <img src="./img/01_basic.svg" width="50%">
+            </section>
+
+            <section>
+                 <img src="./img/02_basic_with_server.svg" width="50%">
+            </section>
+
+            <section>
+                <h3>HAProxy</h3>
+                <ul>
+                    <li>loadbalancer, reverzní proxy</li>
+                    <li>de facto standard open-source loadbalancer</li>
+                    <li>TCP, HTTP</li>
+                    <li>100k+ současných požadavků za vteřinu</li>
+                    <li>automatický výběr TLS/SSL certifikátu</li>
+                    <li>několik load balancing algoritmů</li>
+                    <li>hot reconfiguration (v1.7)</li>
+                    <li>neumí cachovat obsah</li>
+                </ul>
+            </section>
+
+            <section>
+                 <img src="./img/03_one_haproxy.svg" width="100%">
+            </section>
+
+            <section>
+                 <img src="./img/04_one_haproxy_crash.svg" width="100%">
+            </section>
+
+            <section>
+                 <img src="./img/05_two_haproxy.svg" width="80%">
+            </section>
+
+            <section>
+                <h3>HA pomocí DNS</h3>
+                <ul>
+                    <li>DNS vrací více IP adres</li>
+                    <pre>
+<code class="bash">kayn@t460:~$ dig microsoft.com +short
+104.40.211.35
+23.100.122.175
+23.96.52.53
+191.239.213.197
+104.43.195.251</code></pre>
+                    <li>DNS caching</li>
+                    <li>při výpadku jednoho serveru je teoreticky 50% klientů bez služby</li>
+                    <li>žádná kontrola nad provozem</li>
+                    <li>využívá obě HAProxy - problémy se sticky sessions</li>
+                </ul>
+            </section>
+
+            <section>
+                 <img src="./img/06_two_haproxy_active_passive.svg" width="80%">
+            </section>
+
+            <section>
+                <h3>HA pomocí failover IP adresy</h3>
+                <ul>
+                    <li>veřejná IP adresa routovatelná na jakýkoliv server</li>
+                    <li>nabízí například OVH nebo Hetzner</li>
+                    <li>ovladání jak přes administrační rozhraní tak skrze API</li>
+                    <li>downtime &lt1s při změně routování</li>
+                </ul>
+            </section>
+
+            <section>
+                 <img src="./img/07_two_haproxy_pacemaker.svg" width="100%">
+            </section>
+
+            <section>
+                <h3>Pacemaker</h3>
+                <ul>
+                    <li>škálovatelný program pro vytváření clusterů - resource manager</li>
+                    <li>monitorování služeb (např. přes systemd nebo vlastní skripty)</li>
+                    <li>automatická detekce a recovery</li>
+                    <li>zaznamenávání událostí</li>
+                    <li>komunikace s OVH/Hetzner API pomocí Pacemakeru:</li>
+                    <ul>
+                        <li><a href="https://github.com/tux-o-matic/ovhipfailover">https://github.com/tux-o-matic/ovhipfailover</a></li>
+                        <li><a href="https://blog.kumina.nl/2011/02/hetzner-failover-ip-ocf-script">https://blog.kumina.nl/2011/02/hetzner-failover-ip-ocf-script</a></li>
+                    </ul>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Pacemaker - konfigurace</h3>
+<pre><code class="crmsh">[root@haproxy01.example.com ~]# crm configure show
+node 1: haproxy01.example.com
+node 2: haproxy02.example.com
+primitive haproxy systemd:haproxy \
+	params \
+	op monitor interval=10s \
+	op start interval=0 on-fail=restart timeout=30s
+primitive ovh_vip ocf:inuits:ovh-failover-ip \
+	params ip=203.0.113.1 script="/usr/local/sbin/ovh_ip_failover.py" \
+	op monitor interval=10s timeout=20s \
+	op start interval=0 on-fail=restart timeout=180s \
+	op stop interval=0s timeout=20s
+clone haproxy-clone haproxy \
+	meta clone-max=2
+colocation colocation-ovh_vip-haproxy-clone-INFINITY inf: ovh_vip haproxy-clone
+...</code></pre>
+            </section>
+
+            <section>
+                <h3>HA vlastnosti</h3>
+                <ul>
+                    <li>dostupnost 24/7</li>
+                    <li>možnost přesměrování provozu v případě údržby</li>
+                    <li>aktivní/pasivní režim HAProxy</li>
+                    <ul>
+                        <li>reálná data na stats page</li>
+                        <li>snažší ovládání přes stats page</li>
+                    </ul>
+                    <li>vlastní implementace celého stacku</li>
+                    <li>?vendor lock-in?</li>
+                </ul>
+            </section>
+        </section>
+
+
+        <section>
+            <section>
+                <h2>Let's Encrypt</h2>
+            </section>
+
+            <section>
+                <h3>Let's Encrypt</h3>
+                <ul>
+                    <li>otevřená a automatizová certifikační autorita zdarma</li>
+                    <li>stačí kontrolovat webserver nebo doménu</li>
+                    <li>platnost certifikátu cca 3 měsíce</li>
+                    <li>automatické obnovování (cronjob)</li>
+                    <li>wildcard certifikáty v lednu 2018</li>
+                    <li>nutnost zálohovat</li>
+                    <li>rate-limits (<a href="https://letsencrypt.org/docs/rate-limits/">https://letsencrypt.org/docs/rate-limits</a>)</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Certbot</h3>
+                <ul>
+                    <li>nástroj pro získání certifikátů od CA využívajících ACME protokol</li>
+                    <li>dostupný v běžnách distribucích (RHEL/CentOS - EPEL)</li>
+                    <li>podpora apache/2.x a nginx/0.8.48+</li>
+                    <li>pluginy
+                    <ul>
+                        <li>apache - získání a konfigurace</li>
+                        <li>nginx - získání a konfigurace</li>
+                        <li>webroot - použití webrootu běžícího webserveru</li>
+                        <li>standalone - spustí vlastní webserver na portu 80 nebo 443</li>
+                        <li>manual</li>
+                    </ul>
+                </ul>
+            </section>
+
+            <section>
+                 <img src="./img/07_two_haproxy_pacemaker.svg" width="100%">
+            </section>
+
+            <section>
+                 <img src="./img/08_two_haproxy_pacemaker_simpler.svg" width="100%">
+            </section>
+
+            <section>
+                <h3>Konfigurace HAProxy</h3>
+<pre><code class="nginx">frontend http-in
+  bind 0.0.0.0:443 ssl crt /self_sign.pem ssl crt /etc/pki/tls/haproxy/
+  bind 0.0.0.0:80
+  mode http
+  use_backend letsencrypt if { path_beg -i /.well-known/acme-challenge/ }
+  redirect scheme https code 301 if !{ ssl_fc } { hdr(host) -i example.com www.example.com }
+  use_backend backend_app if { hdr(host) -i example.com www.example.com }
+
+listen letsencrypt
+  mode http
+  balance roundrobin
+  server haproxy01 192.168.0.10:9999
+  server haproxy02 192.168.0.11:9999
+
+listen backend_app
+  mode http
+  balance leastconn
+  http-check expect rstatus (2..)
+  server webserver01 192.168.0.20:80 check
+  server webserver02 192.168.0.21:80 check</code></pre>
+            </section>
+
+            <section>
+                <h3>Konfigurace HAProxy - frontend</h3>
+<pre><code class="nginx">frontend http-in
+  bind 0.0.0.0:443 ssl crt /self_sign.pem ssl crt /etc/pki/tls/haproxy/
+  bind 0.0.0.0:80
+  mode http
+  use_backend letsencrypt if { path_beg -i /.well-known/acme-challenge/ }
+  redirect scheme https code 301 if !{ ssl_fc } { hdr(host) -i example.com www.example.com }
+  use_backend backend_app if { hdr(host) -i example.com www.example.com }</code></pre>
+                <ul>
+                    <li>defaultní self-signed certifikát /self_sign.pem</li>
+                    <li>ostatní certifikáty v /etc/pki/tls/haproxy/</li>
+                    <li>ověřovací cesta LE směřována na backend letsencrypt</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Konfigurace HAProxy - backend</h3>
+<pre><code class="nginx">listen letsencrypt
+  mode http
+  balance roundrobin
+  option redispatch
+  server haproxy01 192.168.0.10:9999
+  server haproxy02 192.168.0.11:9999</code></pre>
+                <ul>
+                    <li>LE požadavky končí zpět na IP adrese HAProxy na portu 9999</li>
+                    <li><code>option redispatch</code> - přeposílá požadavek na další dostupný server (defaultně povolený)</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Žádost o LE certifikát</h3>
+                <pre><code class="bash">cert_path=/etc/letsencrypt/live/example.com/
+haproxy_path=/etc/pki/tls/haproxy/
+
+certbot --text --agree-tos certonly -a standalone \
+--keep-until-expiring -d example.com -d www.example.com --non-interactive \
+--standalone-supported-challenges http-01 --http-01-port 9999 |
+grep "Congratulations" &&
+cat $certpath/{fullchain.pem,privkey.pem} > $haproxy_path/example.com.pem &&
+/sbin/service haproxy reload</code></pre>
+                <ul>
+                    <li>běží v cronu na obou haproxy</li>
+                </ul>
+            </section>
+
+            <section>
+                 <img src="./img/10_two_haproxy_first_certbot.svg" width="100%">
+            </section>
+
+            <section>
+                 <img src="./img/11_two_haproxy_first_req.svg" width="100%">
+            </section>
+
+            <section>
+                 <img src="./img/12_two_haproxy_first_done.svg" width="100%">
+            </section>
+
+            <section>
+                 <img src="./img/13_two_haproxy_second_certbot.svg" width="100%">
+            </section>
+
+            <section>
+                 <img src="./img/14_two_haproxy_second_fir_req.svg" width="100%">
+            </section>
+
+            <section>
+                 <img src="./img/15_two_haproxy_second_sec_req.svg" width="100%">
+            </section>
+
+            <section>
+                 <img src="./img/16_two_haproxy_second_done.svg" width="100%">
+            </section>
+
+            <section>
+                <h3>Let's Encrypt na HA HAProxy - vlastnosti</h3>
+                <ul>
+                    <li>plně automatizované a konfigurovatelné</li>
+                    <li>duplicitní certifikát! (limit 5 certifikátů/týden)</li>
+                    <li>privátní klíč neopouští server/VM</li>
+                    <li>není potřeba zálohovat</li>
+                </ul>
+            </section>
+
+        </section>
+
+        <section>
+            <h3>Dotazy?</h3>
+            <ul>
+                <li><b>24. října 2017 18:00</b> - Open Source Summit Night - Node5</li>
+                <li>Děkuji za pozornost!</li>
+            </ul>
+            <img src="./img/inuits_default_logo-nofont.svg" width="30%">
+        </section>
+
+        <section>
+            <h3>Zdroje</h3>
+            <ul>
+                <li><a href="http://www.haproxy.org/">http://www.haproxy.org/</a></li>
+                <li><a href="https://certbot.eff.org/">https://certbot.eff.org/</a></li>
+                <li><a href="https://github.com/certbot/certbot">https://github.com/certbot/certbot</a></li>
+                <li><a href="https://letsencrypt.org/">https://letsencrypt.org/</a></li>
+                <li><a href="https://blog.kumina.nl/2011/02/hetzner-failover-ip-ocf-script">https://blog.kumina.nl/2011/02/hetzner-failover-ip-ocf-script</a></li>
+            </ul>
+        </section>
+
+
+
+    </div>
+
+</div>
+
+<script src="./lib/js/head.min.js"></script>
+<script src="./js/reveal.min.js"></script>
+
+<script>
+
+  // Full list of configuration options available here:
+  // https://github.com/hakimel/reveal.js#configuration
+  Reveal.initialize({
+    controls: true,
+    progress: true,
+    history: true,
+    center: true,
+
+    theme: Reveal.getQueryHash().theme, // available themes are in //css/theme
+    transition: Reveal.getQueryHash().transition || 'linear', // default/cube/page/concave/zoom/linear/fade/none
+
+    // Optional libraries used to extend on reveal.js
+    dependencies: [
+      {
+        src: './lib/js/classList.js', condition: function () {
+        return !document.body.classList;
+      }
+      },
+      {
+        src: './plugin/markdown/showdown.js', condition: function () {
+        return !!document.querySelector('[data-markdown]');
+      }
+      },
+      {
+        src: './plugin/markdown/markdown.js', condition: function () {
+        return !!document.querySelector('[data-markdown]');
+      }
+      },
+      {
+        src: './plugin/highlight/highlight.js', async: true, callback: function () {
+        hljs.initHighlightingOnLoad();
+      }
+      },
+      {
+        src: './plugin/zoom-js/zoom.js', async: true, condition: function () {
+        return !!document.body.classList;
+      }
+      },
+      {
+        src: './plugin/notes/notes.js', async: true, condition: function () {
+        return !!document.body.classList;
+      }
+      }
+      //{ src: 'plugin/remotes/remotes.js', async: true, condition: function() { return !!document.body.classList; } }
+    ]
+  });
+
+</script>
+
+</body>
+</html>
