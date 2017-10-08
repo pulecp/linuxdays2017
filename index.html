@@ -296,7 +296,7 @@ certbot --text --agree-tos certonly -a standalone \
 --keep-until-expiring -d example.com -d www.example.com --non-interactive \
 --standalone-supported-challenges http-01 --http-01-port 9999 |
 grep "Congratulations" &&
-cat $certpath/{fullchain.pem,privkey.pem} > $haproxy_path/example.com.pem &&
+cat $cert_path/{fullchain.pem,privkey.pem} > $haproxy_path/example.com.pem &&
 /sbin/service haproxy reload</code></pre>
                 <ul>
                     <li>běží v cronu na obou haproxy</li>
