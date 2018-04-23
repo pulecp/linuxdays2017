@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
 
-    <title>Nasazení HA loadbalanceru - HAProxy + Let's Encrypt</title>
+    <title>Deployment of HA loadbalancer - HAProxy + Let's Encrypt</title>
 
     <meta name="author" content="Pavel Pulec">
 
@@ -40,7 +40,7 @@
     <div class="slides">
 
         <section>
-            <h2>Nasazení HA loadbalanceru</h2>
+            <h2>Deployment of HA loadbalancer</h2>
             <h2>-</h2>
             <h2>HAProxy + Let's Encrypt</h2>
             <h5>Pavel Pulec</h5>
@@ -48,14 +48,14 @@
 
         <section>
             <section>
-                <h2>O mně</h2>
+                <h2>About me</h2>
             </section>
 
             <section>
                 <h3>Pavel Pulec</h3>
                 <ul>
-                    <li>linux administrátor @inuits.{cz,be,eu,nl}</li>
-                    <li>Puppet, HA, MongoDB, GlusterFS, Jenkins, Icinga, ELK, RabbitMQ, Apache Storm, automatizace, ...</li>
+                    <li>linux administrator @inuits.{cz,be,eu,nl}</li>
+                    <li>Puppet, HA, MongoDB, GlusterFS, Jenkins, Icinga, ELK, RabbitMQ, Apache Storm, automatization, ...</li>
                     <li>kayn@inuits.cz</li>
                 </ul>
             </section>
@@ -78,14 +78,14 @@
             <section>
                 <h3>HAProxy</h3>
                 <ul>
-                    <li>loadbalancer, reverzní proxy</li>
-                    <li>de facto standard open-source loadbalancer</li>
+                    <li>loadbalancer, reverse proxy</li>
+                    <li>de facto standard of open-source loadbalancers</li>
                     <li>TCP, HTTP</li>
-                    <li>100k+ současných požadavků za vteřinu</li>
-                    <li>automatický výběr TLS/SSL certifikátu</li>
-                    <li>několik load balancing algoritmů</li>
+                    <li>100k+ simultaneous connections per second</li>
+                    <li>automatically choose TLS/SSL certificate</li>
+                    <li>couple of load balancing algorithms</li>
                     <li>hot reconfiguration (v1.7)</li>
-                    <li>neumí cachovat obsah</li>
+                    <li>no caching!</li>
                 </ul>
             </section>
 
@@ -102,9 +102,9 @@
             </section>
 
             <section>
-                <h3>HA pomocí DNS</h3>
+                <h3>HA by DNS</h3>
                 <ul>
-                    <li>DNS vrací více IP adres</li>
+                    <li>DNS returns more IP addresses</li>
                     <pre>
 <code class="bash">kayn@t460:~$ dig microsoft.com +short
 104.40.211.35
@@ -113,9 +113,9 @@
 191.239.213.197
 104.43.195.251</code></pre>
                     <li>DNS caching</li>
-                    <li>při výpadku jednoho serveru je teoreticky 50% klientů bez služby</li>
-                    <li>žádná kontrola nad provozem</li>
-                    <li>využívá obě HAProxy - problémy se sticky sessions</li>
+                    <li>theoretically 1/2 of clients is out of service when one server dies</li>
+                    <li>no traffic control</li>
+                    <li>both HAProxies are used - problems with sticky sessions</li>
                 </ul>
             </section>
 
@@ -124,12 +124,12 @@
             </section>
 
             <section>
-                <h3>HA pomocí failover IP adresy</h3>
+                <h3>HA by failover IP address</h3>
                 <ul>
-                    <li>veřejná IP adresa routovatelná na jakýkoliv server</li>
-                    <li>nabízí například OVH nebo Hetzner</li>
-                    <li>ovladání jak přes administrační rozhraní tak skrze API</li>
-                    <li>downtime &lt1s při změně routování</li>
+                    <li>public IP address routable to any your server</li>
+                    <li>provided by OVH or Hetzner</li>
+                    <li>manageable over admin console in browser or API</li>
+                    <li>downtime less than 1s when changing routing</li>
                 </ul>
             </section>
 
@@ -140,11 +140,11 @@
             <section>
                 <h3>Pacemaker</h3>
                 <ul>
-                    <li>škálovatelný program pro vytváření clusterů - resource manager</li>
-                    <li>monitorování služeb (např. přes systemd nebo vlastní skripty)</li>
-                    <li>automatická detekce a recovery</li>
-                    <li>zaznamenávání událostí</li>
-                    <li>komunikace s OVH/Hetzner API pomocí Pacemakeru:</li>
+                    <li>scalable program to manage resources on clusters</li>
+                    <li>monitoring of services (i.e. over systemd or own scripts)</li>
+                    <li>automatic detection and recovery</li>
+                    <li>records accidents</li>
+                    <li>communication with OVH/Hetzner API by Pacemaker:</li>
                     <ul>
                         <li><a href="https://github.com/tux-o-matic/ovhipfailover">https://github.com/tux-o-matic/ovhipfailover</a></li>
                         <li><a href="https://blog.kumina.nl/2011/02/hetzner-failover-ip-ocf-script">https://blog.kumina.nl/2011/02/hetzner-failover-ip-ocf-script</a></li>
@@ -153,7 +153,7 @@
             </section>
 
             <section>
-                <h3>Pacemaker - konfigurace</h3>
+                <h3>Pacemaker - configuration</h3>
 <pre><code class="crmsh">[root@haproxy01.example.com ~]# crm configure show
 node 1: haproxy01.example.com
 node 2: haproxy02.example.com
@@ -173,16 +173,16 @@ colocation colocation-ovh_vip-haproxy-clone-INFINITY inf: ovh_vip haproxy-clone
             </section>
 
             <section>
-                <h3>HA vlastnosti</h3>
+                <h3>HA properties</h3>
                 <ul>
-                    <li>dostupnost 24/7</li>
-                    <li>možnost přesměrování provozu v případě údržby</li>
-                    <li>aktivní/pasivní režim HAProxy</li>
+                    <li>24/7 availability</li>
+                    <li>option to re-route the traffic in a case of maintenance</li>
+                    <li>active/passive mode of HAProxy</li>
                     <ul>
-                        <li>reálná data na stats page</li>
-                        <li>snažší ovládání přes stats page</li>
+                        <li>real data on stats page</li>
+                        <li>easy management over stats page</li>
                     </ul>
-                    <li>vlastní implementace celého stacku</li>
+                    <li>own implementation of whole stack</li>
                     <li>?vendor lock-in?</li>
                 </ul>
             </section>
@@ -197,13 +197,13 @@ colocation colocation-ovh_vip-haproxy-clone-INFINITY inf: ovh_vip haproxy-clone
             <section>
                 <h3>Let's Encrypt</h3>
                 <ul>
-                    <li>otevřená a automatizovaná certifikační autorita zdarma</li>
-                    <li>stačí kontrolovat webserver nebo doménu</li>
-                    <li>ověření po HTTP - pozor na přesměrování z HTTP na HTTPS</li>
-                    <li>platnost certifikátu cca 3 měsíce</li>
-                    <li>automatické obnovování (cronjob)</li>
-                    <li>wildcard certifikáty v lednu 2018</li>
-                    <li>nutnost zálohovat</li>
+                    <li>free, open and automated certificate authority</li>
+                    <li>enough to control DNS or webserver to request a certificate</li>
+                    <li>verification over HTTP - be careful with a redirection from HTTP to HTTPS</li>
+                    <li>certificate is valid 3 months</li>
+                    <li>automatic re-newing (cronjob)</li>
+                    <li>wildcard certificates are finally supported</li>
+                    <li>you should back up certificates</li>
                     <li>rate-limits (<a href="https://letsencrypt.org/docs/rate-limits/">https://letsencrypt.org/docs/rate-limits</a>)</li>
                 </ul>
             </section>
@@ -211,15 +211,15 @@ colocation colocation-ovh_vip-haproxy-clone-INFINITY inf: ovh_vip haproxy-clone
             <section>
                 <h3>Certbot</h3>
                 <ul>
-                    <li>nástroj pro získání certifikátů od CA využívajících ACME protokol</li>
-                    <li>dostupný v běžnách distribucích (RHEL/CentOS 7 - EPEL)</li>
-                    <li>podpora apache/2.x a nginx/0.8.48+</li>
-                    <li>pluginy
+                    <li>the tool to get certificates from authorities using ACME protocol</li>
+                    <li>available in common distributions (RHEL/CentOS 7 - EPEL)</li>
+                    <li>supports apache/2.x and nginx/0.8.48+</li>
+                    <li>plugins
                     <ul>
-                        <li>apache - získání a konfigurace</li>
-                        <li>nginx - získání a konfigurace</li>
-                        <li>webroot - použití webrootu běžícího webserveru</li>
-                        <li>standalone - spustí vlastní webserver na portu 80 nebo 443</li>
+                        <li>apache - get and configure</li>
+                        <li>nginx - get and configure</li>
+                        <li>webroot - uses webroot of running webserver</li>
+                        <li>standalone - runs own webserver on port 80 or 443</li>
                         <li>manual</li>
                     </ul>
                 </ul>
@@ -234,7 +234,7 @@ colocation colocation-ovh_vip-haproxy-clone-INFINITY inf: ovh_vip haproxy-clone
             </section>
 
             <section>
-                <h3>Konfigurace HAProxy</h3>
+                <h3>HAProxy configuration</h3>
 <pre><code class="nginx">frontend http-in
   bind 0.0.0.0:443 ssl crt /self_sign.pem ssl crt /etc/pki/tls/haproxy/
   bind 0.0.0.0:80
@@ -258,7 +258,7 @@ listen backend_app
             </section>
 
             <section>
-                <h3>Konfigurace HAProxy - frontend</h3>
+                <h3>HAProxy configuration - frontend</h3>
 <pre><code class="nginx">frontend http-in
   bind 0.0.0.0:443 ssl crt /self_sign.pem ssl crt /etc/pki/tls/haproxy/
   bind 0.0.0.0:80
@@ -267,14 +267,14 @@ listen backend_app
   redirect scheme https code 301 if !{ ssl_fc } { hdr(host) -i example.com www.example.com }
   use_backend backend_app if { hdr(host) -i example.com www.example.com }</code></pre>
                 <ul>
-                    <li>defaultní self-signed certifikát /self_sign.pem</li>
-                    <li>ostatní certifikáty v /etc/pki/tls/haproxy/</li>
-                    <li>ověřovací cesta LE směřována na backend letsencrypt</li>
+                    <li>self-signed certificate by default /self_sign.pem</li>
+                    <li>other certificates in /etc/pki/tls/haproxy/</li>
+                    <li>authentication requests from LE ends on "letsencrypt" backend</li>
                 </ul>
             </section>
 
             <section>
-                <h3>Konfigurace HAProxy - backend</h3>
+                <h3>HAProxy configuration - backend</h3>
 <pre><code class="nginx">listen letsencrypt
   mode http
   balance roundrobin
@@ -282,13 +282,13 @@ listen backend_app
   server haproxy01 192.168.0.10:9999
   server haproxy02 192.168.0.11:9999</code></pre>
                 <ul>
-                    <li>LE požadavky končí zpět na IP adrese HAProxy na portu 9999</li>
-                    <li><code>option redispatch</code> - přeposílá požadavek na další dostupný server (defaultně povolený)</li>
+                    <li>authentication requests end on HAProxy on port 9999</li>
+                    <li><code>option redispatch</code> - automatically redirect a request to another available server (enabled by default)</li>
                 </ul>
             </section>
 
             <section>
-                <h3>Žádost o LE certifikát</h3>
+                <h3>How to request certificate</h3>
                 <pre><code class="bash">cert_path=/etc/letsencrypt/live/example.com/
 haproxy_path=/etc/pki/tls/haproxy/
 
@@ -299,7 +299,7 @@ grep "Congratulations" &&
 cat $cert_path/{fullchain.pem,privkey.pem} > $haproxy_path/example.com.pem &&
 /sbin/service haproxy reload</code></pre>
                 <ul>
-                    <li>běží v cronu na obou haproxy</li>
+                    <li>runs in cron on both HAProxy</li>
                 </ul>
             </section>
 
@@ -332,30 +332,29 @@ cat $cert_path/{fullchain.pem,privkey.pem} > $haproxy_path/example.com.pem &&
             </section>
 
             <section>
-                <h3>Let's Encrypt na HA HAProxy - vlastnosti</h3>
+                <h3>Let's Encrypt on HA HAProxy - properties</h3>
                 <ul>
-                    <li>plně automatizované a konfigurovatelné</li>
-                    <li>duplicitní certifikát! (limit 5 certifikátů/týden)</li>
-                    <li>privátní klíč neopouští server/VM</li>
-                    <li>není potřeba zálohovat</li>
+                    <li>fully automated and configurable</li>
+                    <li>duplicate certificates! (limit 5 certificates/week)</li>
+                    <li>private key is on server/VM only</li>
+                    <li>no need to back up a certificate</li>
                 </ul>
             </section>
 
         </section>
 
         <section>
-            <h3>Dotazy?</h3>
+            <h3>Questions?</h3>
             <ul>
-                <li><b>24. října 2017 18:00</b> - Open Source Summit Night - Node5</li>
-                <li>slajdy: <a href="https://pulecp.github.io/linuxdays2017/">https://pulecp.github.io/linuxdays2017/</a></li>
+                <li>slides: <a href="https://pulecp.github.io/linuxdays2017/">https://pulecp.github.io/linuxdays2017/</a></li>
                 <li>kayn@inuits.cz</li>
-                <li>Děkuji za pozornost!</li>
+                <li>Thanks for attention!</li>
             </ul>
             <img src="./img/inuits_default_logo-nofont.svg" width="30%">
         </section>
 
         <section>
-            <h3>Zdroje</h3>
+            <h3>Sources</h3>
             <ul>
                 <li><a href="http://www.haproxy.org/">http://www.haproxy.org/</a></li>
                 <li><a href="https://certbot.eff.org/">https://certbot.eff.org/</a></li>
